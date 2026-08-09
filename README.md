@@ -1,4 +1,6 @@
 # DesktopSonos
+![Alt text](/image.jpg?raw=true "Optional Title")
+
 
 A Windows desktop app (C# / WPF / .NET 8) that finds the Sonos players on your LAN and plays
 audio to them from three sources:
