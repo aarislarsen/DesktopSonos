@@ -169,6 +169,47 @@
                 <Setter Property="FontWeight" Value="SemiBold" />
             </Style>
 
+            <!--
+                Panel tab, as used for LIBRARY / SPOTIFY. Which one is current is data, not
+                control state, so the active look is driven by Tag: bind it to the boolean and
+                the label brightens and grows its accent rule. Keeping it on Tag means the tabs
+                need no code-behind and no extra converter.
+            -->
+            <Style x:Key="TabButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Padding" Value="2,0" />
+                <Setter Property="Margin" Value="0,0,16,0" />
+                <Setter Property="FontSize" Value="10.5" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{StaticResource FaintTextBrush}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <!-- Transparent background, not none: a null one is not hit-testable,
+                                 so only the glyph itself would be clickable. -->
+                            <StackPanel Background="Transparent">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  Margin="{TemplateBinding Padding}" />
+                                <Border x:Name="Rule" Height="2" Margin="0,4,0,0"
+                                        CornerRadius="1" Background="Transparent" />
+                            </StackPanel>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+                                </Trigger>
+                                <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}"
+                                             Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                    <Setter TargetName="Rule" Property="Background"
+                                            Value="{StaticResource AccentBrush}" />
+                                </DataTrigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <Style x:Key="WindowButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
                 <Setter Property="Width" Value="42" />
                 <Setter Property="Height" Value="30" />

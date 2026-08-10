@@ -63,9 +63,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // window never gets a clean Closed event.
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
 
+        // The Spotify tab drives the same player and the same queue, so it is handed the few
+        // things it needs rather than a reference back to this whole view model.
+        Music = new MusicViewModel(
+            coordinator: () => Coordinator,
+            reloadQueue: LoadQueueAsync,
+            queueLength: () => Queue.Count,
+            currentTrackNumber: () => _currentTrackNumber,
+            setStatus: text => Status = text,
+            log: AppendLog);
+
         _tick = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _tick.Tick += async (_, _) => await TickAsync();
     }
+
+    /// <summary>Search, browse and queue the account's Spotify content beside the local library.</summary>
+    public MusicViewModel Music { get; }
 
     // ================================================================ state
 
@@ -208,6 +221,39 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ToggleLibrary() => IsLibraryExpanded = !IsLibraryExpanded;
 
+    /// <summary>
+    /// The side panel is two tabs over one column rather than a third panel: rooms, queue and
+    /// library keep the positions they have always had, and Spotify takes the library's place
+    /// only while it is the one being used.
+    /// </summary>
+    [ObservableProperty] private bool isMusicTab;
+
+    partial void OnIsMusicTabChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsLibraryTab));
+        if (!_settingsReady) return;
+        _settings.SpotifyTabActive = value;
+        _settings.Save();
+    }
+
+    public bool IsLibraryTab => !IsMusicTab;
+
+    [RelayCommand]
+    private void ShowLibraryTab() => IsMusicTab = false;
+
+    [RelayCommand]
+    private void ShowMusicTab()
+    {
+        IsMusicTab = true;
+        IsLibraryExpanded = true;
+    }
+
+    /// <summary>Spotify's own drawer: the client id, the sign-in, and what the players are linked to.</summary>
+    [ObservableProperty] private bool isSpotifySettingsOpen;
+
+    [RelayCommand]
+    private void ToggleSpotifySettings() => IsSpotifySettingsOpen = !IsSpotifySettingsOpen;
+
     private List<TrackInfo> _selectedTracks = new();
 
     public bool IsPlaying => TransportState == "PLAYING";
@@ -282,6 +328,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsRoomsExpanded = _settings.RoomsExpanded;
         IsLibraryExpanded = _settings.LibraryExpanded;
         IsCompactView = _settings.CompactView;
+        IsMusicTab = _settings.SpotifyTabActive;
+
+        // Restores the Spotify link silently when one is stored: a connected account is the
+        // normal case, so it must not need a click at every start.
+        Music.Start(_settings);
 
         RestoreStreamSelection();
 

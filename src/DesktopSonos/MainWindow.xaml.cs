@@ -7,6 +7,8 @@ using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using DesktopSonos.Library;
+using DesktopSonos.Music;
+using DesktopSonos.Spotify;
 using DesktopSonos.UI;
 using DesktopSonos.ViewModels;
 
@@ -75,7 +77,7 @@ public partial class MainWindow : Window
 
         // Search is the most common next action, so it starts focused — but only when it is on
         // screen: focusing a control inside a collapsed panel silently does nothing.
-        if (_viewModel.IsLibraryExpanded && !_viewModel.IsCompactView) SearchBox.Focus();
+        if (_viewModel.IsLibraryExpanded && !_viewModel.IsCompactView) FocusSearch(null);
     }
 
     private void OnClosing(object? sender, CancelEventArgs e)
@@ -300,6 +302,21 @@ public partial class MainWindow : Window
         await _viewModel.PlayNextCommand.ExecuteAsync(null);
     }
 
+    private void SpotifyList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        _viewModel.Music.SetSelectedItems(SpotifyList.SelectedItems.Cast<MusicItem>());
+
+    /// <summary>
+    /// Double-click opens an album or playlist, because seeing what is in one is what you want
+    /// next. On a track it means the same thing it means in the library: play it next.
+    /// </summary>
+    private async void SpotifyList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (SpotifyList.SelectedItem is not MusicItem item) return;
+
+        if (item.CanOpen) await _viewModel.Music.OpenAsync(item);
+        else await _viewModel.Music.PlayNextCommand.ExecuteAsync(null);
+    }
+
     private async void QueueList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (QueueList.SelectedItem is not QueueItemViewModel item) return;
@@ -334,9 +351,24 @@ public partial class MainWindow : Window
         // There is no library on screen in the compact strip, so typing must not try to reach it.
         if (_viewModel.IsCompactView) return;
 
+        var reflows = false;
+
         if (!_viewModel.IsLibraryExpanded)
         {
             _viewModel.IsLibraryExpanded = true;
+            reflows = true;
+        }
+
+        // The Spotify search box only exists on its search list, so typing switches to it rather
+        // than being swallowed while the playlists or albums list is up.
+        if (_viewModel.IsMusicTab && !_viewModel.Music.IsSearchSource)
+        {
+            _viewModel.Music.ShowSearchCommand.Execute(null);
+            reflows = true;
+        }
+
+        if (reflows)
+        {
             Dispatcher.BeginInvoke(new Action(() => ApplySearchFocus(append)), DispatcherPriority.Input);
             return;
         }
@@ -346,16 +378,19 @@ public partial class MainWindow : Window
 
     private void ApplySearchFocus(string? append)
     {
-        SearchBox.Focus();
+        var box = _viewModel.IsMusicTab ? SpotifySearchBox : SearchBox;
+        box.Focus();
 
         if (append is null)
         {
-            SearchBox.SelectAll();
+            box.SelectAll();
             return;
         }
 
-        _viewModel.FilterText += append;
-        SearchBox.CaretIndex = SearchBox.Text.Length;
+        if (_viewModel.IsMusicTab) _viewModel.Music.SearchText += append;
+        else _viewModel.FilterText += append;
+
+        box.CaretIndex = box.Text.Length;
     }
 
     protected override async void OnPreviewKeyDown(KeyEventArgs e)
@@ -416,7 +451,8 @@ public partial class MainWindow : Window
         {
             case Key.Escape when typing:
                 e.Handled = true;
-                _viewModel.FilterText = "";
+                if (_viewModel.IsMusicTab) _viewModel.Music.SearchText = "";
+                else _viewModel.FilterText = "";
                 Keyboard.ClearFocus();
                 QueueList.Focus();
                 return;
@@ -424,6 +460,11 @@ public partial class MainWindow : Window
             case Key.Escape when _viewModel.IsSettingsOpen:
                 e.Handled = true;
                 _viewModel.ToggleSettingsCommand.Execute(null);
+                return;
+
+            case Key.Escape when _viewModel.IsSpotifySettingsOpen:
+                e.Handled = true;
+                _viewModel.ToggleSpotifySettingsCommand.Execute(null);
                 return;
 
             case Key.Space when !typing:
@@ -434,6 +475,14 @@ public partial class MainWindow : Window
             case Key.Enter when TrackList.IsKeyboardFocusWithin:
                 e.Handled = true;
                 await _viewModel.PlayNextCommand.ExecuteAsync(null);
+                return;
+
+            case Key.Enter when SpotifyList.IsKeyboardFocusWithin:
+                e.Handled = true;
+                if (SpotifyList.SelectedItem is MusicItem { CanOpen: true } container)
+                    await _viewModel.Music.OpenAsync(container);
+                else
+                    await _viewModel.Music.PlayNextCommand.ExecuteAsync(null);
                 return;
 
             case Key.Delete when QueueList.IsKeyboardFocusWithin:
@@ -450,7 +499,8 @@ public partial class MainWindow : Window
     protected override void OnPreviewTextInput(TextCompositionEventArgs e)
     {
         base.OnPreviewTextInput(e);
-        if (e.Handled || _viewModel.IsSettingsOpen || _viewModel.IsCompactView) return;
+        if (e.Handled || _viewModel.IsSettingsOpen || _viewModel.IsSpotifySettingsOpen ||
+            _viewModel.IsCompactView) return;
         if (IsTypingTarget(Keyboard.FocusedElement)) return;
         if (string.IsNullOrEmpty(e.Text) || char.IsControl(e.Text[0])) return;
 

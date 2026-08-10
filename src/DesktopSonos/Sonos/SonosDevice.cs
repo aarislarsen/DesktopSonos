@@ -208,6 +208,24 @@ public sealed class SonosDevice
             ("UpdateID", "0"));
 
     /// <summary>
+    /// Writes the current queue to the household as a saved queue ("Sonos playlist"). Pass an
+    /// empty <paramref name="objectId"/> to create one; passing an existing "SQ:n" overwrites it.
+    /// Returns the assigned object id.
+    /// </summary>
+    public async Task<string> SaveQueueAsync(string title, string objectId = "",
+        CancellationToken ct = default)
+    {
+        var r = await AvAsync("SaveQueue", ct,
+            ("InstanceID", "0"), ("Title", title), ("ObjectID", objectId)).ConfigureAwait(false);
+        return r.GetValueOrDefault("AssignedObjectID") ?? "";
+    }
+
+    /// <summary>Deletes a saved queue. ObjectID looks like "SQ:3".</summary>
+    public Task DestroyObjectAsync(string objectId, CancellationToken ct = default) =>
+        SonosSoap.InvokeAsync(Host, ContentDirectoryControl, ContentDirectoryService, "DestroyObject",
+            new[] { new KeyValuePair<string, string>("ObjectID", objectId) }, ct);
+
+    /// <summary>
     /// ContentDirectory Browse. "Q:0" is the player's own queue; the returned Result is a
     /// DIDL-Lite document (already unescaped by the SOAP layer).
     /// </summary>

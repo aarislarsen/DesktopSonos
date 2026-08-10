@@ -399,19 +399,28 @@
                     </Border>
 
                     <DockPanel Visibility="{Binding IsLibraryExpanded, Converter={StaticResource BoolToVis}}">
+                        <!-- Two tabs over one column, not a third panel: rooms, queue and library
+                             keep the fixed positions habituation depends on, and Spotify takes
+                             the library's place only while it is the one being used. -->
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6" LastChildFill="False">
                             <Button DockPanel.Dock="Left" Command="{Binding ToggleLibraryCommand}"
                                     BorderThickness="0" Background="Transparent"
-                                    Padding="4,2" Margin="0,0,0,6" HorizontalContentAlignment="Left"
-                                    ToolTip="Collapse the library to the side">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="▸" Style="{StaticResource SectionLabel}" Margin="0,0,7,0" />
-                                    <TextBlock Text="LIBRARY" Style="{StaticResource SectionLabel}" Margin="0" />
-                                </StackPanel>
+                                    Padding="4,2" Margin="0,0,4,6" HorizontalContentAlignment="Left"
+                                    ToolTip="Collapse the panel to the side">
+                                <TextBlock Text="▸" Style="{StaticResource SectionLabel}" Margin="0" />
                             </Button>
+                            <Button DockPanel.Dock="Left" Content="LIBRARY"
+                                    Style="{StaticResource TabButton}" Tag="{Binding IsLibraryTab}"
+                                    Command="{Binding ShowLibraryTabCommand}"
+                                    ToolTip="Music on this PC and on the network" />
+                            <Button DockPanel.Dock="Left" Content="MUSIC"
+                                    Style="{StaticResource TabButton}" Tag="{Binding IsMusicTab}"
+                                    Command="{Binding ShowMusicTabCommand}"
+                                    ToolTip="Favourites, playlists and streaming services on the players" />
                             <TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right"
                                        Style="{StaticResource Faint}" Margin="8,0,2,8"
-                                       MaxWidth="250" TextTrimming="CharacterEllipsis">
+                                       MaxWidth="250" TextTrimming="CharacterEllipsis"
+                                       Visibility="{Binding IsLibraryTab, Converter={StaticResource BoolToVis}}">
                                 <Run Text="{Binding TrackCountText, Mode=OneWay}" />
                                 <Run Text=" " />
                                 <Run Text="{Binding LibraryStatus, Mode=OneWay}"
@@ -420,7 +429,25 @@
                                 <Run Text="{Binding SelectionSummary, Mode=OneWay}"
                                      Foreground="{StaticResource AccentBrush}" />
                             </TextBlock>
+                            <TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                       Style="{StaticResource Faint}" Margin="8,0,2,8"
+                                       MaxWidth="250" TextTrimming="CharacterEllipsis"
+                                       DataContext="{Binding Music}"
+                                       Visibility="{Binding DataContext.IsMusicTab,
+                                           RelativeSource={RelativeSource AncestorType=Window},
+                                           Converter={StaticResource BoolToVis}}">
+                                <Run Text="{Binding ResultSummary, Mode=OneWay}" />
+                                <Run Text=" " />
+                                <Run Text="{Binding SelectionSummary, Mode=OneWay}"
+                                     Foreground="{StaticResource AccentBrush}" />
+                            </TextBlock>
                         </DockPanel>
+
+                        <!-- Both tab bodies are built; only one is ever visible. Keeping them
+                             loaded means switching tabs never re-runs a search or a scan. -->
+                        <Grid>
+
+                        <DockPanel Visibility="{Binding IsLibraryTab, Converter={StaticResource BoolToVis}}">
 
                         <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
                             <TextBox x:Name="SearchBox" FontSize="13.5" Padding="12,8"
@@ -482,6 +509,200 @@
                                 </GridView>
                             </ListView.View>
                         </ListView>
+                        </DockPanel>
+
+                        <!-- ==================== Spotify tab ====================
+                             Same five verbs, in the same order and the same place as the
+                             library's, because they mean the same thing here. -->
+                        <DockPanel DataContext="{Binding Music}"
+                                   Visibility="{Binding DataContext.IsMusicTab,
+                                       RelativeSource={RelativeSource AncestorType=Window},
+                                       Converter={StaticResource BoolToVis}}">
+
+                            <!-- A banner rather than a blocking overlay: Sonos playlists live on
+                                 the players and are usable with no Spotify account at all. -->
+                            <Border DockPanel.Dock="Top" Margin="0,0,0,8" Padding="10,8"
+                                    CornerRadius="6" Background="{StaticResource RaisedBackground}"
+                                    BorderBrush="{StaticResource PanelBorder}" BorderThickness="1"
+                                    Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="Connect"
+                                            Style="{StaticResource AccentButton}" Margin="8,0,0,0"
+                                            Command="{Binding ConnectCommand}"
+                                            ToolTip="Sign in to Spotify in your browser" />
+                                    <Button DockPanel.Dock="Right" Content="⚙" Padding="9,6" Margin="0"
+                                            Command="{Binding DataContext.ToggleSpotifySettingsCommand,
+                                                RelativeSource={RelativeSource AncestorType=Window}}"
+                                            ToolTip="Spotify settings" />
+                                    <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                                               Style="{StaticResource Caption}"
+                                               Text="Only free-text search needs a Spotify sign-in. Favourites, Sonos playlists and pasted links already play." />
+                                </DockPanel>
+                            </Border>
+
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8" LastChildFill="False">
+                                <Button DockPanel.Dock="Left" Content="◂" Padding="9,3" Margin="0,0,6,0"
+                                        Command="{Binding BackCommand}"
+                                        Visibility="{Binding CanGoBack, Converter={StaticResource BoolToVis}}"
+                                        ToolTip="Back to the previous list" />
+                                <TextBlock DockPanel.Dock="Right" Text="working…" Margin="8,0,2,0"
+                                           VerticalAlignment="Center" Style="{StaticResource Faint}"
+                                           Foreground="{StaticResource AccentBrush}"
+                                           Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+                                <TextBlock Text="{Binding Heading}" VerticalAlignment="Center"
+                                           FontSize="13" TextTrimming="CharacterEllipsis" />
+                            </DockPanel>
+
+                            <!-- Only worth showing when the list actually spans more than one
+                                 service; a Spotify-only household never sees it. -->
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8"
+                                       Visibility="{Binding HasServiceChoice, Converter={StaticResource BoolToVis}}">
+                                <TextBlock DockPanel.Dock="Left" Text="SERVICE" VerticalAlignment="Center"
+                                           Style="{StaticResource SectionLabel}" Margin="2,0,8,0" />
+                                <ComboBox ItemsSource="{Binding Services}"
+                                          SelectedItem="{Binding ServiceFilter, Mode=TwoWay}"
+                                          ToolTip="Show only one streaming service" />
+                            </DockPanel>
+
+                            <ui:CenteredWrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                                <Button Content="Favourites" Margin="3,0,3,6"
+                                        Command="{Binding ShowFavouritesCommand}"
+                                        ToolTip="Everything favourited in the Sonos app — no sign-in needed" />
+                                <Button Content="Search" Margin="3,0,3,6"
+                                        Command="{Binding ShowSearchCommand}"
+                                        ToolTip="Free-text Spotify search — needs the sign-in under ⚙" />
+                                <Button Content="Playlists" Margin="3,0,3,6"
+                                        Command="{Binding ShowMyPlaylistsCommand}"
+                                        ToolTip="Your Spotify playlists" />
+                                <Button Content="Albums" Margin="3,0,3,6"
+                                        Command="{Binding ShowSavedAlbumsCommand}"
+                                        ToolTip="Albums saved to your Spotify library" />
+                                <Button Content="Liked" Margin="3,0,3,6"
+                                        Command="{Binding ShowLikedSongsCommand}"
+                                        ToolTip="Your liked songs" />
+                                <Button Content="Sonos" Margin="3,0,3,6"
+                                        Command="{Binding ShowSonosPlaylistsCommand}"
+                                        ToolTip="Playlists saved on the players — these can mix Spotify and local tracks" />
+                                <Button Content="↻" Padding="9,6" Margin="3,0,3,6"
+                                        Command="{Binding RefreshCommand}" ToolTip="Re-read this list" />
+                                <Button Content="⚙" Padding="9,6" Margin="3,0,3,6"
+                                        Command="{Binding DataContext.ToggleSpotifySettingsCommand,
+                                            RelativeSource={RelativeSource AncestorType=Window}}"
+                                        ToolTip="Spotify account and connection" />
+                            </ui:CenteredWrapPanel>
+
+                            <Grid DockPanel.Dock="Top" Margin="0,0,0,8"
+                                  Visibility="{Binding IsSearchSource, Converter={StaticResource BoolToVis}}">
+                                <TextBox x:Name="SpotifySearchBox" FontSize="13.5" Padding="12,8"
+                                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock IsHitTestVisible="False" Margin="13,0,0,0" VerticalAlignment="Center"
+                                           FontSize="13.5" Foreground="{StaticResource FaintTextBrush}"
+                                           Text="Search Spotify">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SearchText}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+
+                            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="2,0,0,8"
+                                        Visibility="{Binding IsSearchSource, Converter={StaticResource BoolToVis}}">
+                                <CheckBox Content="Tracks" IsChecked="{Binding SearchTracks}" Margin="0,0,12,0" />
+                                <CheckBox Content="Albums" IsChecked="{Binding SearchAlbums}" Margin="0,0,12,0" />
+                                <CheckBox Content="Playlists" IsChecked="{Binding SearchPlaylists}" />
+                            </StackPanel>
+
+                            <!-- The one way to reach any Spotify album or playlist with nothing
+                                 signed in: the id is in the link, and the players resolve it
+                                 against their own Spotify account. -->
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" Content="Add" Margin="6,0,0,0"
+                                        Command="{Binding AddLinkCommand}"
+                                        ToolTip="Put the pasted link in the list, then use the buttons below" />
+                                <Grid>
+                                    <TextBox x:Name="SpotifyLinkBox" VerticalAlignment="Center"
+                                             Text="{Binding LinkText, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="Paste a Spotify link or URI — Share ▸ Copy link, or Copy Spotify URI">
+                                        <TextBox.InputBindings>
+                                            <KeyBinding Key="Enter" Command="{Binding AddLinkCommand}" />
+                                        </TextBox.InputBindings>
+                                    </TextBox>
+                                    <TextBlock IsHitTestVisible="False" Margin="13,0,0,0"
+                                               VerticalAlignment="Center"
+                                               Foreground="{StaticResource FaintTextBrush}"
+                                               Text="Paste a Spotify link">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding LinkText}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </DockPanel>
+
+                            <!-- Making a playlist is saving the queue, so the controls for it only
+                                 appear on the list they would change. -->
+                            <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0"
+                                       Visibility="{Binding IsSonosPlaylistSource, Converter={StaticResource BoolToVis}}">
+                                <Button DockPanel.Dock="Right" Content="Delete" Margin="6,0,0,0"
+                                        Command="{Binding DeletePlaylistCommand}"
+                                        ToolTip="Delete the selected Sonos playlist" />
+                                <Button DockPanel.Dock="Right" Content="Save queue"
+                                        Style="{StaticResource AccentButton}" Margin="6,0,0,0"
+                                        Command="{Binding SaveQueueAsPlaylistCommand}"
+                                        ToolTip="Save what is in the queue now as a playlist on the players" />
+                                <TextBox Text="{Binding NewPlaylistName, UpdateSourceTrigger=PropertyChanged}"
+                                         VerticalAlignment="Center" ToolTip="Name for the new playlist" />
+                            </DockPanel>
+
+                            <ui:CenteredWrapPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                                <Button Content="Play next" Style="{StaticResource AccentButton}"
+                                        Margin="3,0,3,6" Command="{Binding PlayNextCommand}"
+                                        ToolTip="Insert after the current track" />
+                                <Button Content="Add to queue" Margin="3,0,3,6"
+                                        Command="{Binding AddToQueueCommand}"
+                                        ToolTip="Append to the end of the queue" />
+                                <Button Content="Play now" Margin="3,0,3,6"
+                                        Command="{Binding PlayNowCommand}"
+                                        ToolTip="Replace the whole queue with the selection and play" />
+                                <Button Content="Queue all" Margin="3,0,3,6"
+                                        Command="{Binding QueueAllCommand}"
+                                        ToolTip="Replace the queue with everything listed" />
+                                <Button Content="Shuffle in" Margin="3,0,3,6"
+                                        Command="{Binding ShuffleInCommand}"
+                                        ToolTip="Append tracks drawn at random from this list, up to the 500-entry Sonos limit" />
+                            </ui:CenteredWrapPanel>
+
+                            <ListView x:Name="SpotifyList" ItemsSource="{Binding Results}"
+                                      SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                                      SelectionMode="Extended"
+                                      SelectionChanged="SpotifyList_SelectionChanged"
+                                      MouseDoubleClick="SpotifyList_MouseDoubleClick">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="TITLE" Width="118" DisplayMemberBinding="{Binding Title}" />
+                                        <GridViewColumn Header="ARTIST" Width="80" DisplayMemberBinding="{Binding Subtitle}" />
+                                        <GridViewColumn Header="ALBUM" Width="72" DisplayMemberBinding="{Binding Detail}" />
+                                        <GridViewColumn Header="TIME" Width="42" DisplayMemberBinding="{Binding DurationText}" />
+                                        <GridViewColumn Header="SERVICE" Width="88" DisplayMemberBinding="{Binding Service}" />
+                                        <GridViewColumn Header="KIND" Width="52" DisplayMemberBinding="{Binding KindLabel}" />
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </DockPanel>
+
+                        </Grid>
                     </DockPanel>
                 </Grid>
             </Grid>
@@ -636,6 +857,62 @@
                         <TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True" Height="180"
                                  FontFamily="Consolas" FontSize="11" TextWrapping="NoWrap"
                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
+                    </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Border>
+
+            <!-- ==================== Spotify drawer ====================
+                 Its own drawer rather than a section of the other one: signing in is a one-time
+                 setup step, and burying it under "network share and diagnostics" would hide it. -->
+            <Border Grid.Row="1" Grid.RowSpan="2" Background="#CC0E1013"
+                    Visibility="{Binding IsSpotifySettingsOpen, Converter={StaticResource BoolToVis}}">
+                <Border Width="560" VerticalAlignment="Center" HorizontalAlignment="Center"
+                        Background="{StaticResource PanelBackground}"
+                        BorderBrush="{StaticResource PanelBorder}" BorderThickness="1"
+                        CornerRadius="10" Padding="22" MaxHeight="560" Margin="0,20">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel DataContext="{Binding Music}">
+                        <DockPanel Margin="0,0,0,14">
+                            <TextBlock Text="Spotify" FontSize="15" />
+                            <Button DockPanel.Dock="Right" HorizontalAlignment="Right" Content="✕"
+                                    Padding="9,5" Margin="0"
+                                    Command="{Binding DataContext.ToggleSpotifySettingsCommand,
+                                        RelativeSource={RelativeSource AncestorType=Window}}" />
+                        </DockPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <Button Content="Connect Spotify" Style="{StaticResource AccentButton}"
+                                    Command="{Binding ConnectCommand}" />
+                            <Button Content="Disconnect" Command="{Binding DisconnectCommand}" />
+                            <TextBlock Text="{Binding ConnectionSummary}" VerticalAlignment="Center"
+                                       Margin="8,0,0,0" Style="{StaticResource Caption}" />
+                        </StackPanel>
+
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="2,0,0,16"
+                                   Text="Signing in is optional and only adds free-text search. Playing Spotify does not need it: the players use the Spotify account already linked in the Sonos app, so favourites, Sonos playlists and pasted Spotify links all work with nothing set up here." />
+
+                        <TextBlock Text="CLIENT ID" Style="{StaticResource SectionLabel}" />
+                        <TextBox Text="{Binding ClientId, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,0,4"
+                                 ToolTip="From your app on developer.spotify.com" />
+                        <TextBlock Style="{StaticResource Faint}" TextWrapping="Wrap" Margin="2,0,0,12"
+                                   Text="Spotify has no shared id for third-party apps, so this one is yours. Go to developer.spotify.com/dashboard, Create app, give it any name, add the redirect URI below, tick Web API, then paste the Client ID here. No client secret is needed." />
+
+                        <TextBlock Text="REDIRECT URI — ADD THIS TO THE SPOTIFY APP"
+                                   Style="{StaticResource SectionLabel}" />
+                        <TextBox Text="{Binding RedirectUri, Mode=OneWay}" IsReadOnly="True"
+                                 Margin="0,0,0,8" />
+
+                        <TextBlock Text="REDIRECT PORT" Style="{StaticResource SectionLabel}" />
+                        <TextBox Width="90" HorizontalAlignment="Left" Margin="0,0,0,12"
+                                 Text="{Binding RedirectPort, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Only change this if something else on the PC already uses the port — it has to match the redirect URI registered with Spotify" />
+
+                        <TextBlock Text="{Binding HouseholdAccountSummary}" Style="{StaticResource Faint}"
+                                   TextWrapping="Wrap" Margin="2,0,0,6" />
+                        <TextBlock Style="{StaticResource Faint}" TextWrapping="Wrap" Margin="2,0,0,0"
+                                   Text="The players stream Spotify themselves, so Spotify must also be linked in the Sonos app, on a Premium account. This app only tells them what to play." />
                     </StackPanel>
                     </ScrollViewer>
                 </Border>
