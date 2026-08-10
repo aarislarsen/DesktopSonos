@@ -67,6 +67,35 @@ public sealed class AppSettings
     /// leave an app stuck on a silent device.
     /// </summary>
     public List<RoutedProcess> PendingRoutes { get; set; } = new();
+    // ---------------------------------------------------------------- Spotify
+
+    /// <summary>
+    /// From the user's own Spotify developer dashboard. Spotify has no shared client id for
+    /// third-party desktop apps, so there is nothing sensible to default this to. Not a secret:
+    /// the PKCE flow is designed for clients that cannot keep one.
+    /// </summary>
+    public string SpotifyClientId { get; set; } = "";
+
+    /// <summary>
+    /// Loopback port the browser sign-in redirects to. It has to match a redirect URI registered
+    /// on the Spotify application, so it is fixed rather than picked at random, and only worth
+    /// changing if something else on the machine already owns the port.
+    /// </summary>
+    public int SpotifyRedirectPort { get; set; } = 8098;
+
+    /// <summary>
+    /// Which music service and linked account the players use for Spotify, discovered from the
+    /// household on first use and kept so later runs skip discovery. Correct these by hand if a
+    /// household somehow reports the wrong one; 0 means "work it out again".
+    /// </summary>
+    public int SpotifySid { get; set; }
+
+    public int SpotifySn { get; set; }
+    public string SpotifyCdudn { get; set; } = "";
+
+    /// <summary>Which of the two side-panel tabs was on screen at exit.</summary>
+    public bool SpotifyTabActive { get; set; }
+
     public double WindowWidth { get; set; } = 1480;
     public double WindowHeight { get; set; } = 880;
 
